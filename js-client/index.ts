@@ -52,6 +52,7 @@ export class RenodeProxySession extends EventTarget {
   private eventHandlers: EventHandlers = {};
   private id: number = 1;
   private defaultTimeout: number = 60000; // in ms
+  private errorCallback: (event: WebSocket.ErrorEvent) => void;
 
   public static async tryConnect(wsUri: string, workspace: string) {
     const uri = new URL(`/proxy/${workspace}`, wsUri);
@@ -68,11 +69,17 @@ export class RenodeProxySession extends EventTarget {
     private sessionUri?: string,
   ) {
     super();
+    this.errorCallback = _ =>
+      console.error('RenodeProxySession: WebSocket error');
     this.sessionSocket.addEventListener('message', ev =>
       this.onData(ev.data.toString()),
     );
-    this.sessionSocket.addEventListener('error', () => this.onError());
+    this.sessionSocket.addEventListener('error', ev => this.errorCallback(ev));
     this.sessionSocket.addEventListener('close', () => this.onClose());
+  }
+
+  public set onError(cb: (event: WebSocket.ErrorEvent) => void) {
+    this.errorCallback = cb;
   }
 
   public get sessionBase(): string | undefined {
@@ -527,10 +534,6 @@ export class RenodeProxySession extends EventTarget {
     } else {
       this.eventHandlers[event].forEach(handler => handler(data));
     }
-  }
-
-  private onError() {
-    console.error('RenodeProxySession: WebSocket error');
   }
 
   private onClose() {
